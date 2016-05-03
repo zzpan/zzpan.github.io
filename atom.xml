@@ -5,7 +5,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="http://yoursite.com/"/>
-  <updated>2016-04-27T09:50:01.000Z</updated>
+  <updated>2016-05-03T10:00:17.000Z</updated>
   <id>http://yoursite.com/</id>
   
   <author>
@@ -14,6 +14,93 @@
   </author>
   
   <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>RSA(一)</title>
+    <link href="http://yoursite.com/2016/05/03/rsa-sercurity-1/"/>
+    <id>http://yoursite.com/2016/05/03/rsa-sercurity-1/</id>
+    <published>2016-05-03T08:53:17.000Z</published>
+    <updated>2016-05-03T10:00:17.000Z</updated>
+    
+    <content type="html">&lt;p&gt;最近iOS客户端开发需要用到RSA加密与服务端通信，还未涉及过此方面知识，写篇文章学习下。这篇介绍RSA，签名相关概念和openssl证书生成的相关命令。&lt;/p&gt;
+&lt;a id=&quot;more&quot;&gt;&lt;/a&gt;
+&lt;h2 id=&quot;RSA&quot;&gt;&lt;a href=&quot;#RSA&quot; class=&quot;headerlink&quot; title=&quot;RSA&quot;&gt;&lt;/a&gt;RSA&lt;/h2&gt;&lt;p&gt;RSA是经典的非对称加密算法。原理就不多介绍了，不研究密码学也没必要深入了解。加解密流程也比简单。但是其中的密钥交换，数字签名，认证中心比较繁琐。画个图&lt;/p&gt;
+&lt;h4 id=&quot;两个概念&quot;&gt;&lt;a href=&quot;#两个概念&quot; class=&quot;headerlink&quot; title=&quot;两个概念&quot;&gt;&lt;/a&gt;两个概念&lt;/h4&gt;&lt;ul&gt;
+&lt;li&gt;加密：发送者使用接受者的公钥对发送信息进行加密操作&lt;/li&gt;
+&lt;li&gt;签名：发送者使用自己私钥对信息进行的加密操作&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;签名的一般做法和作用&quot;&gt;&lt;a href=&quot;#签名的一般做法和作用&quot; class=&quot;headerlink&quot; title=&quot;签名的一般做法和作用&quot;&gt;&lt;/a&gt;签名的一般做法和作用&lt;/h4&gt;&lt;p&gt;发送报文时，发送方用一个哈希函数从报文文本中生成报文摘要,然后用自己的私人密钥对这个摘要进行加密，这个加密后的摘要将作为报文的数字签名和报文一起发送给接收方，接收方首先用与发送方一样的哈希函数从接收到的原始报文中计算出报文摘要，接着再用发送方的公用密钥来对报文附加的数字签名进行解密，如果这两个摘要相同、那么接收方就能确认该数字签名是发送方的。&lt;/p&gt;
+&lt;p&gt;签名有两个重要作用：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;确定消息确实是由发送方签名并发出来的。&lt;/li&gt;
+&lt;li&gt;数字签名能确定消息的完整性。因为数字签名的特点是它代表了文件的特征，文件如果发生改变，数字摘要的值也将发生变化。不同的文件将得到不同的数字摘要。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;中间人攻击和CA&quot;&gt;&lt;a href=&quot;#中间人攻击和CA&quot; class=&quot;headerlink&quot; title=&quot;中间人攻击和CA&quot;&gt;&lt;/a&gt;中间人攻击和CA&lt;/h4&gt;&lt;p&gt;关于中间人攻击维基百科解释的非常好，而且配了生动的示例&lt;a href=&quot;https://zh.wikipedia.org/wiki/%E4%B8%AD%E9%97%B4%E4%BA%BA%E6%94%BB%E5%87%BB#.E9.98.B2.E5.BE.A1.E6.94.BB.E5.87.BB&quot; target=&quot;_blank&quot; rel=&quot;external&quot;&gt;wiki-中间人攻击&lt;/a&gt;。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;CA(认证中心)&lt;/strong&gt; 中间人是破坏了通信中的密钥分配环节,把自己的公钥伪装成别人公钥。 CA(Certificate Authority)就是专门提供网络身份认证服务的机构。&lt;/p&gt;
+&lt;h2 id=&quot;Openssl-实践&quot;&gt;&lt;a href=&quot;#Openssl-实践&quot; class=&quot;headerlink&quot; title=&quot;Openssl 实践&quot;&gt;&lt;/a&gt;Openssl 实践&lt;/h2&gt;&lt;p&gt;&lt;strong&gt;生成私钥&lt;/strong&gt;&lt;/p&gt;
+&lt;figure class=&quot;highlight bash&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&quot;code&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;openssl genrsa -out root_private_key.pem 1024&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+&lt;p&gt;&lt;strong&gt;创建公钥&lt;/strong&gt;&lt;/p&gt;
+&lt;figure class=&quot;highlight bash&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&quot;code&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;openssl rsa -in root_private_key.pem -out root_public_key.pem -pubout&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+&lt;p&gt;公私钥是一一对应的，所以生成公钥需要指定一个私钥。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;加密文件&lt;/strong&gt;&lt;/p&gt;
+&lt;figure class=&quot;highlight bash&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&quot;code&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;openssl rsautl -encrypt -pubin -inkey root_public_key.pem -in plain.txt -out cipher.txt&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+&lt;p&gt;&lt;strong&gt;解密文件&lt;/strong&gt;&lt;/p&gt;
+&lt;figure class=&quot;highlight bash&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&quot;code&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;openssl rsautl -decrypt -inkey root_private_key.pem -in cipher.txt -out plain.txt&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+&lt;p&gt;如果加密/解密文件过大，会报”openssl data greater than mod len”错误。这是因为RSA算法对加密文件的长度是有限制的。过大的话需要分片加密。（测试的时候加密”hello”可以，加密”hello world!”，解密的时候竟然就报错了）&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;创建证书请求&lt;/strong&gt;&lt;/p&gt;
+&lt;figure class=&quot;highlight bash&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&quot;code&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;openssl req -new -out root-req.csr -key root_private_key.pem -keyform PEM&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+&lt;p&gt;为了证实身份证书请求要用私钥签名。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;自签生成公钥证书&lt;/strong&gt;&lt;/p&gt;
+&lt;figure class=&quot;highlight bash&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&quot;code&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;openssl x509 -req -in root-req.csr -out root_public_key.der -outform der -signkey root_private_key.pem -days 3650&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+&lt;p&gt;也可以导出cer格式的证书， 就可以使用cer格式的证书和密钥导出p12格式的信息交换文件&lt;/p&gt;
+&lt;figure class=&quot;highlight bash&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&quot;code&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;openssl x509 -req -in root-req.csr -out root_public_key.cer -signkey root_private_key.pem -days 3650&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+&lt;p&gt;在这一步中我们自己扮演了CA角色&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;导出p12格式证书&lt;/strong&gt;&lt;/p&gt;
+&lt;figure class=&quot;highlight bash&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&quot;code&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;openssl pkcs12 -export -clcerts -in root-cert.cer -inkey root_private_key.pem -out root.p12&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+&lt;p&gt;p12文件通常用于保存个人私钥&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;自签根证书&lt;/strong&gt;&lt;/p&gt;
+&lt;figure class=&quot;highlight bash&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&quot;code&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;openssl x509 -req -in root-req.csr -out root-cert.cer -signkey root_private_key.pem -CAcreateserial -days 3650&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+&lt;h4 id=&quot;证书格式说明&quot;&gt;&lt;a href=&quot;#证书格式说明&quot; class=&quot;headerlink&quot; title=&quot;证书格式说明&quot;&gt;&lt;/a&gt;证书格式说明&lt;/h4&gt;&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;格式&lt;/th&gt;
+&lt;th&gt;说明&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;pem&lt;/td&gt;
+&lt;td&gt;PEM(Privacy Enhanced Mail)是openssl默认采用的信息存放方式。一般包含内容类型、头信息和信息体（BASE64编码的数据）&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;csr&lt;/td&gt;
+&lt;td&gt;(Certificate Signing Request)即证书签名请求,这个并不是证书,而是向权威证书颁发机构获得签名证书的申请,其核心内容是一个公钥&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;der&lt;/td&gt;
+&lt;td&gt;(Distinguished Encoding Rules)二进制格式的证书文件，不可读&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;p12&lt;/td&gt;
+&lt;td&gt;以pkcs#12格式存储的证书和相应私钥，他通常包含保护密码，2进制方式 通常用于保存个人私钥&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;crt/cer&lt;/td&gt;
+&lt;td&gt;用于存放证书，2进制形式&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h2 id=&quot;下一步&quot;&gt;&lt;a href=&quot;#下一步&quot; class=&quot;headerlink&quot; title=&quot;下一步&quot;&gt;&lt;/a&gt;下一步&lt;/h2&gt;&lt;p&gt;接下来我们将使用iOS的Security框架，在iOS端实现RSA加解密。&lt;/p&gt;
+</content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;最近iOS客户端开发需要用到RSA加密与服务端通信，还未涉及过此方面知识，写篇文章学习下。这篇介绍RSA，签名相关概念和openssl证书生成的相关命令。&lt;/p&gt;
+    
+    </summary>
+    
+    
+  </entry>
   
   <entry>
     <title>Hexo &amp; GitHub 建站记录</title>

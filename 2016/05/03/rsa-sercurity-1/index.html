@@ -1,0 +1,70 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> RSA(一) · Pan's paper</title><meta name="description" content="RSA(一) - Zhang pan"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/apollo.css"><link rel="stylesheet" href="http://fonts.useso.com/css?family=Source+Sans+Pro:400,600" type="text/css"></head><body><div class="wrap"><header><a href="/" class="logo-link"><img src="/favicon.png"></a><ul class="nav nav-list"><li class="nav-list-item"><a href="/" target="_self" class="nav-list-link">BLOG</a></li><li class="nav-list-item"><a href="/archives/" target="_self" class="nav-list-link">ARCHIVE</a></li></ul></header><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">RSA(一)</h1><div class="post-info">May 3, 2016</div><div class="post-content"><p>最近iOS客户端开发需要用到RSA加密与服务端通信，还未涉及过此方面知识，写篇文章学习下。这篇介绍RSA，签名相关概念和openssl证书生成的相关命令。</p>
+<a id="more"></a>
+<h2 id="RSA"><a href="#RSA" class="headerlink" title="RSA"></a>RSA</h2><p>RSA是经典的非对称加密算法。原理就不多介绍了，不研究密码学也没必要深入了解。加解密流程也比简单。但是其中的密钥交换，数字签名，认证中心比较繁琐。画个图</p>
+<h4 id="两个概念"><a href="#两个概念" class="headerlink" title="两个概念"></a>两个概念</h4><ul>
+<li>加密：发送者使用接受者的公钥对发送信息进行加密操作</li>
+<li>签名：发送者使用自己私钥对信息进行的加密操作</li>
+</ul>
+<h4 id="签名的一般做法和作用"><a href="#签名的一般做法和作用" class="headerlink" title="签名的一般做法和作用"></a>签名的一般做法和作用</h4><p>发送报文时，发送方用一个哈希函数从报文文本中生成报文摘要,然后用自己的私人密钥对这个摘要进行加密，这个加密后的摘要将作为报文的数字签名和报文一起发送给接收方，接收方首先用与发送方一样的哈希函数从接收到的原始报文中计算出报文摘要，接着再用发送方的公用密钥来对报文附加的数字签名进行解密，如果这两个摘要相同、那么接收方就能确认该数字签名是发送方的。</p>
+<p>签名有两个重要作用：</p>
+<ul>
+<li>确定消息确实是由发送方签名并发出来的。</li>
+<li>数字签名能确定消息的完整性。因为数字签名的特点是它代表了文件的特征，文件如果发生改变，数字摘要的值也将发生变化。不同的文件将得到不同的数字摘要。</li>
+</ul>
+<h4 id="中间人攻击和CA"><a href="#中间人攻击和CA" class="headerlink" title="中间人攻击和CA"></a>中间人攻击和CA</h4><p>关于中间人攻击维基百科解释的非常好，而且配了生动的示例<a href="https://zh.wikipedia.org/wiki/%E4%B8%AD%E9%97%B4%E4%BA%BA%E6%94%BB%E5%87%BB#.E9.98.B2.E5.BE.A1.E6.94.BB.E5.87.BB" target="_blank" rel="external">wiki-中间人攻击</a>。</p>
+<p><strong>CA(认证中心)</strong> 中间人是破坏了通信中的密钥分配环节,把自己的公钥伪装成别人公钥。 CA(Certificate Authority)就是专门提供网络身份认证服务的机构。</p>
+<h2 id="Openssl-实践"><a href="#Openssl-实践" class="headerlink" title="Openssl 实践"></a>Openssl 实践</h2><p><strong>生成私钥</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">openssl genrsa -out root_private_key.pem 1024</span><br></pre></td></tr></table></figure>
+<p><strong>创建公钥</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">openssl rsa -in root_private_key.pem -out root_public_key.pem -pubout</span><br></pre></td></tr></table></figure>
+<p>公私钥是一一对应的，所以生成公钥需要指定一个私钥。</p>
+<p><strong>加密文件</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">openssl rsautl -encrypt -pubin -inkey root_public_key.pem -in plain.txt -out cipher.txt</span><br></pre></td></tr></table></figure>
+<p><strong>解密文件</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">openssl rsautl -decrypt -inkey root_private_key.pem -in cipher.txt -out plain.txt</span><br></pre></td></tr></table></figure>
+<p>如果加密/解密文件过大，会报”openssl data greater than mod len”错误。这是因为RSA算法对加密文件的长度是有限制的。过大的话需要分片加密。（测试的时候加密”hello”可以，加密”hello world!”，解密的时候竟然就报错了）</p>
+<p><strong>创建证书请求</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">openssl req -new -out root-req.csr -key root_private_key.pem -keyform PEM</span><br></pre></td></tr></table></figure>
+<p>为了证实身份证书请求要用私钥签名。</p>
+<p><strong>自签生成公钥证书</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">openssl x509 -req -in root-req.csr -out root_public_key.der -outform der -signkey root_private_key.pem -days 3650</span><br></pre></td></tr></table></figure>
+<p>也可以导出cer格式的证书， 就可以使用cer格式的证书和密钥导出p12格式的信息交换文件</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">openssl x509 -req -in root-req.csr -out root_public_key.cer -signkey root_private_key.pem -days 3650</span><br></pre></td></tr></table></figure>
+<p>在这一步中我们自己扮演了CA角色</p>
+<p><strong>导出p12格式证书</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">openssl pkcs12 -export -clcerts -in root-cert.cer -inkey root_private_key.pem -out root.p12</span><br></pre></td></tr></table></figure>
+<p>p12文件通常用于保存个人私钥</p>
+<p><strong>自签根证书</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">openssl x509 -req -in root-req.csr -out root-cert.cer -signkey root_private_key.pem -CAcreateserial -days 3650</span><br></pre></td></tr></table></figure>
+<h4 id="证书格式说明"><a href="#证书格式说明" class="headerlink" title="证书格式说明"></a>证书格式说明</h4><table>
+<thead>
+<tr>
+<th>格式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pem</td>
+<td>PEM(Privacy Enhanced Mail)是openssl默认采用的信息存放方式。一般包含内容类型、头信息和信息体（BASE64编码的数据）</td>
+</tr>
+<tr>
+<td>csr</td>
+<td>(Certificate Signing Request)即证书签名请求,这个并不是证书,而是向权威证书颁发机构获得签名证书的申请,其核心内容是一个公钥</td>
+</tr>
+<tr>
+<td>der</td>
+<td>(Distinguished Encoding Rules)二进制格式的证书文件，不可读</td>
+</tr>
+<tr>
+<td>p12</td>
+<td>以pkcs#12格式存储的证书和相应私钥，他通常包含保护密码，2进制方式 通常用于保存个人私钥</td>
+</tr>
+<tr>
+<td>crt/cer</td>
+<td>用于存放证书，2进制形式</td>
+</tr>
+</tbody>
+</table>
+<h2 id="下一步"><a href="#下一步" class="headerlink" title="下一步"></a>下一步</h2><p>接下来我们将使用iOS的Security框架，在iOS端实现RSA加解密。</p>
+</div></article></div></section><footer><div class="paginator"><a href="/2016/04/27/hexo1/" class="next">NEXT</a></div><div class="copyright"><p>© 2015 - 2016 <a href="http://yoursite.com">Zhang pan</a>, unless otherwise noted.</p></div></footer></div><script async src="//cdn.bootcss.com/mathjax/2.6.1/MathJax.js?config=TeX-MML-AM_CHTML"></script></body></html>

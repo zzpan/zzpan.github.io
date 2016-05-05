@@ -5,7 +5,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="http://yoursite.com/"/>
-  <updated>2016-05-03T10:00:17.000Z</updated>
+  <updated>2016-05-05T08:28:31.000Z</updated>
   <id>http://yoursite.com/</id>
   
   <author>
@@ -16,15 +16,79 @@
   <generator uri="http://hexo.io/">Hexo</generator>
   
   <entry>
+    <title>RSA(二)</title>
+    <link href="http://yoursite.com/2016/05/05/rsa-sercurity-2/"/>
+    <id>http://yoursite.com/2016/05/05/rsa-sercurity-2/</id>
+    <published>2016-05-05T08:21:01.000Z</published>
+    <updated>2016-05-05T08:28:31.000Z</updated>
+    
+    <content type="html">&lt;p&gt;本文中将会使用iOS的Security.framework，写一个类来是先在iOS客户端的加解密操作。同时将这个类封装到一个静态文件中来加强安全性，感觉贴代码好傻，需要的还是去github上clone吧！不贴代码内容一下变少了，所以把本来在第三篇的内容，放到这里吧！所以这篇的重要内容是，iOS实践+ https介绍 + nginx https实践，内容有点不搭。&lt;/p&gt;
+&lt;a id=&quot;more&quot;&gt;&lt;/a&gt;
+&lt;h3 id=&quot;iOS实践项目&quot;&gt;&lt;a href=&quot;#iOS实践项目&quot; class=&quot;headerlink&quot; title=&quot;iOS实践项目&quot;&gt;&lt;/a&gt;iOS实践项目&lt;/h3&gt;&lt;p&gt;项目代码还是不在这个贴了，有需要的可以去&lt;a href=&quot;https://github.com/zzpan/zzpan_rsa_ios_demo&quot; target=&quot;_blank&quot; rel=&quot;external&quot;&gt;这里&lt;/a&gt; clone, 两点说明&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;存放公钥需要用DER格式的文件，存放私钥需要使用p12格式的文件&lt;/li&gt;
+&lt;li&gt;加密数据过长需要分片，Demo中未实现此步骤&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;传输层安全协议-TLS&quot;&gt;&lt;a href=&quot;#传输层安全协议-TLS&quot; class=&quot;headerlink&quot; title=&quot;传输层安全协议(TLS)&quot;&gt;&lt;/a&gt;传输层安全协议(TLS)&lt;/h3&gt;&lt;p&gt;TLS提供两个应用程序间，通过网络的一个不安全通道，创建起安全的连接，来交换数据，防止数据受到窃听及篡改。&lt;/p&gt;
+&lt;h4 id=&quot;超文本传输安全协议-HTTPS&quot;&gt;&lt;a href=&quot;#超文本传输安全协议-HTTPS&quot; class=&quot;headerlink&quot; title=&quot;超文本传输安全协议(HTTPS)&quot;&gt;&lt;/a&gt;超文本传输安全协议(HTTPS)&lt;/h4&gt;&lt;p&gt;HTTPS是HTTP和TLS的组合，用TLS创建安全链接，用HTTP交换数据。&lt;/p&gt;
+&lt;h4 id=&quot;TLS的握手过程&quot;&gt;&lt;a href=&quot;#TLS的握手过程&quot; class=&quot;headerlink&quot; title=&quot;TLS的握手过程&quot;&gt;&lt;/a&gt;TLS的握手过程&lt;/h4&gt;&lt;p&gt;握手可分为三个阶段： &lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;协商对等支持的密钥算法（密钥交换的非对称加解密算法、数据加密的对称密钥算法和会话密钥生成的散列函数）&lt;/li&gt;
+&lt;li&gt;基于PKI证书的身份认证和非对称密钥的信息传递（传递随机数3）&lt;/li&gt;
+&lt;li&gt;对称密钥生成和基于对称密钥的数据传输保密。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;双向证书认证和SSL握手过程：&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;http://7xsxhy.com2.z0.glb.clouddn.com/blog%2Fssl_handshake.png&quot; target=&quot;_blank&quot;&gt;&lt;img src=&quot;http://7xsxhy.com2.z0.glb.clouddn.com/blog%2Fssl_handshake.png&quot; style=&quot;width:300px&quot;&gt;&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;关于TLS更详细的信息可以参考&lt;a href=&quot;https://zh.wikipedia.org/wiki/%E5%82%B3%E8%BC%B8%E5%B1%A4%E5%AE%89%E5%85%A8%E5%8D%94%E8%AD%B0&quot; target=&quot;_blank&quot; rel=&quot;external&quot;&gt;wiki-传输层安全协议&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;两点说明&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;客户端没证书时可以随机生成证书&lt;/li&gt;
+&lt;li&gt;记录层的所有数据都被编号，用于消息校验码的校验&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;理论上的东西就说这么多了，我们现在要使用用https&lt;/p&gt;
+&lt;h3 id=&quot;使用Nginx建一个简单的HTTPS服务器&quot;&gt;&lt;a href=&quot;#使用Nginx建一个简单的HTTPS服务器&quot; class=&quot;headerlink&quot; title=&quot;使用Nginx建一个简单的HTTPS服务器&quot;&gt;&lt;/a&gt;使用Nginx建一个简单的HTTPS服务器&lt;/h3&gt;&lt;p&gt;首先要创建私钥和公钥证书。可以参考&lt;a href=&quot;http://zpisl.com/2016/05/03/rsa-sercurity-1/&quot; target=&quot;_blank&quot; rel=&quot;external&quot;&gt;RSA(一)&lt;/a&gt;的openssl实践部分创建。然后在nginx的启动目录中创建ssl文件夹，放入公钥证书和私钥，&lt;/p&gt;
+&lt;p&gt;在conf文件中添加https server，https的默认端口是443，当然你也可以指定端口。&lt;/p&gt;
+&lt;figure class=&quot;highlight nginx&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;5&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;6&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;7&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;8&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;9&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;10&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&quot;code&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;&lt;span class=&quot;section&quot;&gt;server&lt;/span&gt; &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;        &lt;span class=&quot;attribute&quot;&gt;listen&lt;/span&gt; &lt;span class=&quot;number&quot;&gt;443&lt;/span&gt;;&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;        &lt;span class=&quot;attribute&quot;&gt;root&lt;/span&gt;  /Users/zhangpan/apps/www;&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;        &lt;span class=&quot;attribute&quot;&gt;index&lt;/span&gt; index.html index.htm;&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;        &lt;span class=&quot;attribute&quot;&gt;ssl&lt;/span&gt; &lt;span class=&quot;literal&quot;&gt;on&lt;/span&gt;;&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;        &lt;span class=&quot;attribute&quot;&gt;ssl_certificate&lt;/span&gt; ../ssl/xinan_public_key.cer;&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;        &lt;span class=&quot;attribute&quot;&gt;ssl_certificate_key&lt;/span&gt; ../ssl/xinan_private_key.pem;&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;    &amp;#125;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+&lt;p&gt;尝试https访问localhost的时候，浏览器就会提示我们证书不受信。点击信任证书就可以和服务器使用https通信了。&lt;/p&gt;
+&lt;h4 id=&quot;优化参数&quot;&gt;&lt;a href=&quot;#优化参数&quot; class=&quot;headerlink&quot; title=&quot;优化参数&quot;&gt;&lt;/a&gt;优化参数&lt;/h4&gt;&lt;ul&gt;
+&lt;li&gt;通过&lt;code&gt;ssl_session_cache&lt;/code&gt;参数设置缓存类型和大小，&lt;/li&gt;
+&lt;/ul&gt;
+&lt;figure class=&quot;highlight plain&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&quot;code&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;ssl_session_cache shared:SSL:10m;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+&lt;p&gt;设置缓存类型为shared:SSL 表示我所有的nginx工作进程共享ssl会话缓存，缓存大小为10MB。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;通过&lt;code&gt;ssl_session_timeout&lt;/code&gt;设置超时时间&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;系统默认的时间是5m，稍短可以设置成30m甚至4h。&lt;/p&gt;
+&lt;h4 id=&quot;体验https&quot;&gt;&lt;a href=&quot;#体验https&quot; class=&quot;headerlink&quot; title=&quot;体验https&quot;&gt;&lt;/a&gt;体验https&lt;/h4&gt;&lt;p&gt;分别使用http和https写了一个api，使用Charles抓包获取的response如下，可以明显看到https的传输内容已加密。&lt;/p&gt;
+&lt;p&gt;http数据包&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;http://7xsxhy.com2.z0.glb.clouddn.com/blog%2Fverify_http.png&quot; target=&quot;_blank&quot; rel=&quot;external&quot;&gt;&lt;img src=&quot;http://7xsxhy.com2.z0.glb.clouddn.com/blog%2Fverify_http.png&quot; style=&quot;width:600px&quot;&gt;&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;https数据包&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;http://7xsxhy.com2.z0.glb.clouddn.com/blog%2Fverify_https.png&quot; target=&quot;_blank&quot; rel=&quot;external&quot;&gt;&lt;img src=&quot;http://7xsxhy.com2.z0.glb.clouddn.com/blog%2Fverify_https.png&quot; style=&quot;width:600px&quot;&gt;&lt;/a&gt;&lt;/p&gt;
+&lt;h2 id=&quot;吐槽&quot;&gt;&lt;a href=&quot;#吐槽&quot; class=&quot;headerlink&quot; title=&quot;吐槽&quot;&gt;&lt;/a&gt;吐槽&lt;/h2&gt;&lt;p&gt;研究RSA的起因是加密传输用户密码。其实用户密码加密是一个单向加密，完全不知道什么地方需要解密用户密码。后来使用sha哈希用户密码存服务器了。数据传输加密可以用https，不需要自己在客户端或服务器去做加解密操作。问题简单了····&lt;/p&gt;
+&lt;h2 id=&quot;参考&quot;&gt;&lt;a href=&quot;#参考&quot; class=&quot;headerlink&quot; title=&quot;参考&quot;&gt;&lt;/a&gt;参考&lt;/h2&gt;&lt;p&gt;&lt;a href=&quot;http://seanlook.com/2015/05/28/nginx-ssl/&quot; target=&quot;_blank&quot; rel=&quot;external&quot;&gt;nginx配置ssl加密（单双向认证、部分https)&lt;/a&gt; 如果链接无效可以点击&lt;a href=&quot;http://7xsxhy.com2.z0.glb.clouddn.com/savenginx-ssl_.pdf&quot; target=&quot;_blank&quot; rel=&quot;external&quot;&gt;这里&lt;/a&gt;下载&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://zh.wikipedia.org/wiki/%E5%82%B3%E8%BC%B8%E5%B1%A4%E5%AE%89%E5%85%A8%E5%8D%94%E8%AD%B0&quot; target=&quot;_blank&quot; rel=&quot;external&quot;&gt;wikipedia-传输层安全协议&lt;/a&gt;&lt;/p&gt;
+</content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;本文中将会使用iOS的Security.framework，写一个类来是先在iOS客户端的加解密操作。同时将这个类封装到一个静态文件中来加强安全性，感觉贴代码好傻，需要的还是去github上clone吧！不贴代码内容一下变少了，所以把本来在第三篇的内容，放到这里吧！所以这篇的重要内容是，iOS实践+ https介绍 + nginx https实践，内容有点不搭。&lt;/p&gt;
+    
+    </summary>
+    
+    
+  </entry>
+  
+  <entry>
     <title>RSA(一)</title>
     <link href="http://yoursite.com/2016/05/03/rsa-sercurity-1/"/>
     <id>http://yoursite.com/2016/05/03/rsa-sercurity-1/</id>
     <published>2016-05-03T08:53:17.000Z</published>
-    <updated>2016-05-03T10:00:17.000Z</updated>
+    <updated>2016-05-05T08:28:37.000Z</updated>
     
     <content type="html">&lt;p&gt;最近iOS客户端开发需要用到RSA加密与服务端通信，还未涉及过此方面知识，写篇文章学习下。这篇介绍RSA，签名相关概念和openssl证书生成的相关命令。&lt;/p&gt;
 &lt;a id=&quot;more&quot;&gt;&lt;/a&gt;
 &lt;h2 id=&quot;RSA&quot;&gt;&lt;a href=&quot;#RSA&quot; class=&quot;headerlink&quot; title=&quot;RSA&quot;&gt;&lt;/a&gt;RSA&lt;/h2&gt;&lt;p&gt;RSA是经典的非对称加密算法。原理就不多介绍了，不研究密码学也没必要深入了解。加解密流程也比简单。但是其中的密钥交换，数字签名，认证中心比较繁琐。画个图&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;http://7xsxhy.com2.z0.glb.clouddn.com/blog%2FRSA.png&quot; width=&quot;600&quot; align=&quot;center&quot;&gt;&lt;/p&gt;
 &lt;h4 id=&quot;两个概念&quot;&gt;&lt;a href=&quot;#两个概念&quot; class=&quot;headerlink&quot; title=&quot;两个概念&quot;&gt;&lt;/a&gt;两个概念&lt;/h4&gt;&lt;ul&gt;
 &lt;li&gt;加密：发送者使用接受者的公钥对发送信息进行加密操作&lt;/li&gt;
 &lt;li&gt;签名：发送者使用自己私钥对信息进行的加密操作&lt;/li&gt;
@@ -36,7 +100,8 @@
 &lt;li&gt;数字签名能确定消息的完整性。因为数字签名的特点是它代表了文件的特征，文件如果发生改变，数字摘要的值也将发生变化。不同的文件将得到不同的数字摘要。&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h4 id=&quot;中间人攻击和CA&quot;&gt;&lt;a href=&quot;#中间人攻击和CA&quot; class=&quot;headerlink&quot; title=&quot;中间人攻击和CA&quot;&gt;&lt;/a&gt;中间人攻击和CA&lt;/h4&gt;&lt;p&gt;关于中间人攻击维基百科解释的非常好，而且配了生动的示例&lt;a href=&quot;https://zh.wikipedia.org/wiki/%E4%B8%AD%E9%97%B4%E4%BA%BA%E6%94%BB%E5%87%BB#.E9.98.B2.E5.BE.A1.E6.94.BB.E5.87.BB&quot; target=&quot;_blank&quot; rel=&quot;external&quot;&gt;wiki-中间人攻击&lt;/a&gt;。&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;CA(认证中心)&lt;/strong&gt; 中间人是破坏了通信中的密钥分配环节,把自己的公钥伪装成别人公钥。 CA(Certificate Authority)就是专门提供网络身份认证服务的机构。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;http://7xsxhy.com2.z0.glb.clouddn.com/blog%2Frsa_man_in_middle.png&quot; width=&quot;600&quot; align=&quot;center&quot;&gt;&lt;/p&gt;
+&lt;p&gt;中间人是破坏了通信中的密钥分配环节,把自己的公钥伪装成别人公钥。 CA(Certificate Authority)就是专门提供网络身份认证服务的机构。&lt;/p&gt;
 &lt;h2 id=&quot;Openssl-实践&quot;&gt;&lt;a href=&quot;#Openssl-实践&quot; class=&quot;headerlink&quot; title=&quot;Openssl 实践&quot;&gt;&lt;/a&gt;Openssl 实践&lt;/h2&gt;&lt;p&gt;&lt;strong&gt;生成私钥&lt;/strong&gt;&lt;/p&gt;
 &lt;figure class=&quot;highlight bash&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&quot;code&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;openssl genrsa -out root_private_key.pem 1024&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
 &lt;p&gt;&lt;strong&gt;创建公钥&lt;/strong&gt;&lt;/p&gt;
@@ -90,6 +155,8 @@
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
+&lt;p&gt;##参考&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://zh.wikipedia.org/wiki/RSA%E5%8A%A0%E5%AF%86%E6%BC%94%E7%AE%97%E6%B3%95&quot; target=&quot;_blank&quot; rel=&quot;external&quot;&gt;RSA加密算法&lt;/a&gt;&lt;br&gt;&lt;a href=&quot;http://honglu.me/2015/05/16/%E5%86%8D%E8%B0%88RSA-%E5%AE%A2%E6%88%B7%E7%AB%AF%E4%B8%8E%E6%9C%8D%E5%8A%A1%E5%99%A8%E4%BA%92%E9%80%9A/&quot; target=&quot;_blank&quot; rel=&quot;external&quot;&gt;再谈RSA-客户端与服务器互通&lt;/a&gt;&lt;/p&gt;
 &lt;h2 id=&quot;下一步&quot;&gt;&lt;a href=&quot;#下一步&quot; class=&quot;headerlink&quot; title=&quot;下一步&quot;&gt;&lt;/a&gt;下一步&lt;/h2&gt;&lt;p&gt;接下来我们将使用iOS的Security框架，在iOS端实现RSA加解密。&lt;/p&gt;
 </content>
     

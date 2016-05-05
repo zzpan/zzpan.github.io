@@ -1,0 +1,46 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> RSA(二) · Pan's paper</title><meta name="description" content="RSA(二) - Zhang pan"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/apollo.css"><link rel="stylesheet" href="http://fonts.useso.com/css?family=Source+Sans+Pro:400,600" type="text/css"></head><body><div class="wrap"><header><a href="/" class="logo-link"><img src="/favicon.png"></a><ul class="nav nav-list"><li class="nav-list-item"><a href="/" target="_self" class="nav-list-link">BLOG</a></li><li class="nav-list-item"><a href="/archives/" target="_self" class="nav-list-link">ARCHIVE</a></li></ul></header><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">RSA(二)</h1><div class="post-info">May 5, 2016</div><div class="post-content"><p>本文中将会使用iOS的Security.framework，写一个类来是先在iOS客户端的加解密操作。同时将这个类封装到一个静态文件中来加强安全性，感觉贴代码好傻，需要的还是去github上clone吧！不贴代码内容一下变少了，所以把本来在第三篇的内容，放到这里吧！所以这篇的重要内容是，iOS实践+ https介绍 + nginx https实践，内容有点不搭。</p>
+<a id="more"></a>
+<h3 id="iOS实践项目"><a href="#iOS实践项目" class="headerlink" title="iOS实践项目"></a>iOS实践项目</h3><p>项目代码还是不在这个贴了，有需要的可以去<a href="https://github.com/zzpan/zzpan_rsa_ios_demo" target="_blank" rel="external">这里</a> clone, 两点说明</p>
+<ul>
+<li>存放公钥需要用DER格式的文件，存放私钥需要使用p12格式的文件</li>
+<li>加密数据过长需要分片，Demo中未实现此步骤</li>
+</ul>
+<h3 id="传输层安全协议-TLS"><a href="#传输层安全协议-TLS" class="headerlink" title="传输层安全协议(TLS)"></a>传输层安全协议(TLS)</h3><p>TLS提供两个应用程序间，通过网络的一个不安全通道，创建起安全的连接，来交换数据，防止数据受到窃听及篡改。</p>
+<h4 id="超文本传输安全协议-HTTPS"><a href="#超文本传输安全协议-HTTPS" class="headerlink" title="超文本传输安全协议(HTTPS)"></a>超文本传输安全协议(HTTPS)</h4><p>HTTPS是HTTP和TLS的组合，用TLS创建安全链接，用HTTP交换数据。</p>
+<h4 id="TLS的握手过程"><a href="#TLS的握手过程" class="headerlink" title="TLS的握手过程"></a>TLS的握手过程</h4><p>握手可分为三个阶段： </p>
+<ul>
+<li>协商对等支持的密钥算法（密钥交换的非对称加解密算法、数据加密的对称密钥算法和会话密钥生成的散列函数）</li>
+<li>基于PKI证书的身份认证和非对称密钥的信息传递（传递随机数3）</li>
+<li>对称密钥生成和基于对称密钥的数据传输保密。</li>
+</ul>
+<p>双向证书认证和SSL握手过程：</p>
+<p><a href="http://7xsxhy.com2.z0.glb.clouddn.com/blog%2Fssl_handshake.png" target="_blank"><img src="http://7xsxhy.com2.z0.glb.clouddn.com/blog%2Fssl_handshake.png" style="width:300px"></a></p>
+<p>关于TLS更详细的信息可以参考<a href="https://zh.wikipedia.org/wiki/%E5%82%B3%E8%BC%B8%E5%B1%A4%E5%AE%89%E5%85%A8%E5%8D%94%E8%AD%B0" target="_blank" rel="external">wiki-传输层安全协议</a></p>
+<p>两点说明</p>
+<ul>
+<li>客户端没证书时可以随机生成证书</li>
+<li>记录层的所有数据都被编号，用于消息校验码的校验</li>
+</ul>
+<p>理论上的东西就说这么多了，我们现在要使用用https</p>
+<h3 id="使用Nginx建一个简单的HTTPS服务器"><a href="#使用Nginx建一个简单的HTTPS服务器" class="headerlink" title="使用Nginx建一个简单的HTTPS服务器"></a>使用Nginx建一个简单的HTTPS服务器</h3><p>首先要创建私钥和公钥证书。可以参考<a href="http://zpisl.com/2016/05/03/rsa-sercurity-1/" target="_blank" rel="external">RSA(一)</a>的openssl实践部分创建。然后在nginx的启动目录中创建ssl文件夹，放入公钥证书和私钥，</p>
+<p>在conf文件中添加https server，https的默认端口是443，当然你也可以指定端口。</p>
+<figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">        <span class="attribute">listen</span> <span class="number">443</span>;</span><br><span class="line"></span><br><span class="line">        <span class="attribute">root</span>  /Users/zhangpan/apps/www;</span><br><span class="line">        <span class="attribute">index</span> index.html index.htm;</span><br><span class="line"></span><br><span class="line">        <span class="attribute">ssl</span> <span class="literal">on</span>;</span><br><span class="line">        <span class="attribute">ssl_certificate</span> ../ssl/xinan_public_key.cer;</span><br><span class="line">        <span class="attribute">ssl_certificate_key</span> ../ssl/xinan_private_key.pem;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>尝试https访问localhost的时候，浏览器就会提示我们证书不受信。点击信任证书就可以和服务器使用https通信了。</p>
+<h4 id="优化参数"><a href="#优化参数" class="headerlink" title="优化参数"></a>优化参数</h4><ul>
+<li>通过<code>ssl_session_cache</code>参数设置缓存类型和大小，</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ssl_session_cache shared:SSL:10m;</span><br></pre></td></tr></table></figure>
+<p>设置缓存类型为shared:SSL 表示我所有的nginx工作进程共享ssl会话缓存，缓存大小为10MB。</p>
+<ul>
+<li>通过<code>ssl_session_timeout</code>设置超时时间</li>
+</ul>
+<p>系统默认的时间是5m，稍短可以设置成30m甚至4h。</p>
+<h4 id="体验https"><a href="#体验https" class="headerlink" title="体验https"></a>体验https</h4><p>分别使用http和https写了一个api，使用Charles抓包获取的response如下，可以明显看到https的传输内容已加密。</p>
+<p>http数据包</p>
+<p><a href="http://7xsxhy.com2.z0.glb.clouddn.com/blog%2Fverify_http.png" target="_blank" rel="external"><img src="http://7xsxhy.com2.z0.glb.clouddn.com/blog%2Fverify_http.png" style="width:600px"></a></p>
+<p>https数据包</p>
+<p><a href="http://7xsxhy.com2.z0.glb.clouddn.com/blog%2Fverify_https.png" target="_blank" rel="external"><img src="http://7xsxhy.com2.z0.glb.clouddn.com/blog%2Fverify_https.png" style="width:600px"></a></p>
+<h2 id="吐槽"><a href="#吐槽" class="headerlink" title="吐槽"></a>吐槽</h2><p>研究RSA的起因是加密传输用户密码。其实用户密码加密是一个单向加密，完全不知道什么地方需要解密用户密码。后来使用sha哈希用户密码存服务器了。数据传输加密可以用https，不需要自己在客户端或服务器去做加解密操作。问题简单了····</p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><p><a href="http://seanlook.com/2015/05/28/nginx-ssl/" target="_blank" rel="external">nginx配置ssl加密（单双向认证、部分https)</a> 如果链接无效可以点击<a href="http://7xsxhy.com2.z0.glb.clouddn.com/savenginx-ssl_.pdf" target="_blank" rel="external">这里</a>下载</p>
+<p><a href="https://zh.wikipedia.org/wiki/%E5%82%B3%E8%BC%B8%E5%B1%A4%E5%AE%89%E5%85%A8%E5%8D%94%E8%AD%B0" target="_blank" rel="external">wikipedia-传输层安全协议</a></p>
+</div></article></div></section><footer><div class="paginator"><a href="/2016/05/03/rsa-sercurity-1/" class="next">下一篇</a></div><div class="copyright"><p>© 2015 - 2016 <a href="http://yoursite.com">Zhang pan</a>, unless otherwise noted.</p></div></footer></div><script async src="//cdn.bootcss.com/mathjax/2.6.1/MathJax.js?config=TeX-MML-AM_CHTML"></script></body></html>
